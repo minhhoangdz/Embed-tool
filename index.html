@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Drive Video Embed Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .preview-container {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+            height: 0;
+            overflow: hidden;
+            border-radius: 0.5rem;
+            background-color: #000;
+        }
+        .preview-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+        <!-- Header -->
+        <div class="bg-blue-600 p-6 text-center">
+            <h1 class="text-2xl font-bold text-white mb-2">
+                <i class="fab fa-google-drive mr-2"></i>Nhúng Video Google Drive
+            </h1>
+            <p class="text-blue-100 text-sm">Tạo mã HTML để nhúng video Drive vào website của bạn</p>
+        </div>
+
+        <div class="p-6 md:p-8 space-y-6">
+            
+            <!-- Step 1: Input -->
+            <div>
+                <label class="block text-gray-700 font-semibold mb-2" for="driveLink">
+                    Bước 1: Dán link Google Drive của bạn
+                </label>
+                <div class="relative">
+                    <input type="text" id="driveLink" 
+                        placeholder="Ví dụ: https://drive.google.com/file/d/1abc.../view?usp=sharing"
+                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+                    >
+                    <button onclick="generateEmbed()" 
+                        class="mt-3 w-full md:w-auto md:absolute md:right-1 md:top-1 md:mt-0 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md transition duration-200">
+                        Tạo Mã
+                    </button>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">
+                    <i class="fas fa-info-circle text-blue-500"></i> Lưu ý: Bạn phải bật chế độ chia sẻ "Bất kỳ ai có đường liên kết" cho video trước.
+                </p>
+            </div>
+
+            <!-- Error Message -->
+            <div id="errorMessage" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded" role="alert">
+                <p class="font-bold">Lỗi</p>
+                <p id="errorText">Không tìm thấy ID video hợp lệ.</p>
+            </div>
+
+            <!-- Result Area (Hidden initially) -->
+            <div id="resultArea" class="hidden space-y-6 animate-fade-in">
+                
+                <!-- Step 2: Code Output -->
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <label class="block text-gray-700 font-semibold mb-2">
+                        Bước 2: Copy đoạn mã này vào website
+                    </label>
+                    <div class="relative">
+                        <textarea id="embedCode" readonly rows="3" 
+                            class="w-full bg-gray-800 text-green-400 font-mono text-sm p-3 rounded-lg focus:outline-none"
+                        ></textarea>
+                        <button onclick="copyToClipboard()" 
+                            class="absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-white text-xs py-1 px-3 rounded border border-gray-500 transition">
+                            <i class="fas fa-copy mr-1"></i> Copy
+                        </button>
+                    </div>
+                    <p id="copyFeedback" class="text-green-600 text-xs mt-1 h-4 font-semibold"></p>
+                </div>
+
+                <!-- Step 3: Preview -->
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">
+                        Bước 3: Xem thử (Preview)
+                    </label>
+                    <div id="previewBox" class="preview-container shadow-md">
+                        <!-- Iframe will be injected here -->
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2 text-center">Nếu video không chạy, hãy kiểm tra lại quyền chia sẻ file trên Google Drive.</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        function generateEmbed() {
+            const inputUrl = document.getElementById('driveLink').value;
+            const errorDiv = document.getElementById('errorMessage');
+            const resultArea = document.getElementById('resultArea');
+            const errorText = document.getElementById('errorText');
+            
+            // Reset UI
+            errorDiv.classList.add('hidden');
+            resultArea.classList.add('hidden');
+            document.getElementById('copyFeedback').innerText = '';
+
+            if (!inputUrl) {
+                showError("Vui lòng nhập đường link.");
+                return;
+            }
+
+            // Regex để tìm File ID từ các dạng link Google Drive phổ biến
+            // Hỗ trợ: /file/d/ID/, id=ID, open?id=ID
+            const idRegex = /[-\w]{25,}/;
+            const match = inputUrl.match(idRegex);
+
+            if (match && match[0]) {
+                const fileId = match[0];
+                
+                // Tạo link embed chuẩn: https://drive.google.com/file/d/[ID]/preview
+                const embedUrl = `https://drive.google.com/file/d/${fileId}/preview`;
+                
+                // Tạo mã HTML
+                const iframeCode = `<iframe src="${embedUrl}" width="640" height="480" allow="autoplay" style="border:none;"></iframe>`;
+
+                // Hiển thị kết quả
+                document.getElementById('embedCode').value = iframeCode;
+                
+                // Render Preview
+                const previewBox = document.getElementById('previewBox');
+                previewBox.innerHTML = `<iframe src="${embedUrl}" allow="autoplay" allowfullscreen></iframe>`;
+
+                resultArea.classList.remove('hidden');
+            } else {
+                showError("Không tìm thấy ID video hợp lệ trong đường link này. Hãy đảm bảo đó là link Google Drive.");
+            }
+        }
+
+        function showError(msg) {
+            const errorDiv = document.getElementById('errorMessage');
+            document.getElementById('errorText').innerText = msg;
+            errorDiv.classList.remove('hidden');
+        }
+
+        function copyToClipboard() {
+            const copyText = document.getElementById("embedCode");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); // For mobile devices
+
+            try {
+                // Sử dụng API clipboard hiện đại hoặc fallback
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(copyText.value);
+                } else {
+                     document.execCommand('copy');
+                }
+                document.getElementById('copyFeedback').innerText = "Đã copy vào bộ nhớ đệm!";
+                setTimeout(() => {
+                    document.getElementById('copyFeedback').innerText = "";
+                }, 3000);
+            } catch (err) {
+                console.error('Không thể copy', err);
+            }
+        }
+    </script>
+</body>
+</html>
+
